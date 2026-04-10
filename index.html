@@ -416,6 +416,12 @@ main { padding: 0 0 80px; }
 }
 .btn-footer:hover { border-color: var(--gold); color: var(--gold); }
 .btn-footer .btn-icon { font-size: 14px; }
+.btn-footer-delete {
+  color: var(--danger-light);
+  border-color: rgba(138,32,32,0.4);
+  margin-left: auto;
+}
+.btn-footer-delete:hover { border-color: var(--danger-light); color: var(--danger-light); }
 .import-msg {
   position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
   z-index: 150;
@@ -770,6 +776,9 @@ function confirmAddChar() {
   save(); render();
 }
 
+function deleteActiveChar() {
+  if (data.active) deleteChar(data.active);
+}
 function deleteChar(id) {
   if (!confirm("Delete this character? This cannot be undone.")) return;
   data.chars = data.chars.filter(c => c.id !== id);
@@ -981,9 +990,6 @@ function renderChar() {
     </div>
     <main>
       ${sectionsHTML}
-      <div class="char-actions">
-        <button class="btn-delete" onclick="deleteChar('${char.id}')">Delete Character</button>
-      </div>
     </main>
   `;
 
@@ -1007,8 +1013,11 @@ function render() {
     return;
   }
   renderTabs();
-  if (data.chars.length && data.active) renderChar();
+  const hasChar = data.chars.length && data.active;
+  if (hasChar) renderChar();
   else renderEmpty();
+  const delBtn = document.getElementById("footerDeleteBtn");
+  if (delBtn) delBtn.style.display = hasChar ? "flex" : "none";
 }
 
 render();
@@ -1113,6 +1122,7 @@ function importData() {
 <footer class="app-footer">
   <button class="btn-footer" onclick="importData()"><span class="btn-icon">📥</span> Import</button>
   <button class="btn-footer" onclick="exportData()"><span class="btn-icon">📤</span> Export</button>
+  <button id="footerDeleteBtn" class="btn-footer btn-footer-delete" onclick="deleteActiveChar()" style="display:none"><span class="btn-icon">🗑️</span> Delete</button>
 </footer>
 <input type="file" id="importFile" accept=".json" style="display:none">
 <div id="importMsg" class="import-msg"></div>
