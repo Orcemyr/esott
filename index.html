@@ -154,6 +154,12 @@ header h1 {
   letter-spacing: 0.08em;
   margin-bottom: 16px;
 }
+.modal p {
+  font-size: 14px;
+  color: rgba(245,237,216,0.7);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
 .modal input {
   width: 100%;
   background: rgba(245,237,216,0.07);
@@ -188,6 +194,11 @@ header h1 {
   border-color: var(--gold);
 }
 .btn-gold:hover { background: var(--gold); color: var(--ink); }
+.btn-danger {
+  border-color: var(--danger);
+  color: var(--danger-light);
+}
+.btn-danger:hover { background: rgba(138,32,32,0.2); border-color: var(--danger-light); color: var(--danger-light); }
 
 /* ── Stats bar ── */
 .stats-bar {
@@ -226,22 +237,64 @@ header h1 {
 .l-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .legend-hint { font-size: 12px; color: rgba(245,237,216,0.35); margin-left: auto; font-style: italic; }
 
-/* ── Sections ── */
+/* ── Sections (Collapsible Crafting Skill Groups) ── */
 main { padding: 0 0 80px; }
+
 .section-header {
   font-family: 'Cinzel', serif;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--gold-dim);
-  padding: 14px 14px 8px;
-  border-bottom: 1px solid rgba(201,168,76,0.1);
+  font-size: 12px;
+  letter-spacing: 0.10em;
+  color: var(--gold);
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid rgba(201,168,76,0.18);
   display: flex; align-items: center; gap: 8px;
+  cursor: pointer;
+  -webkit-user-select: none; user-select: none;
+  background: rgba(201,168,76,0.04);
+  transition: background 0.15s;
+}
+.section-header:hover { background: rgba(201,168,76,0.08); }
+.section-header:active { background: rgba(201,168,76,0.12); }
+.section-chevron {
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: var(--gold-dim);
+}
+.section-header.collapsed .section-chevron { transform: rotate(-90deg); }
+.section-title { flex: 1; }
+.section-progress {
+  font-family: 'Crimson Text', serif;
+  font-size: 12px;
+  color: var(--gold-dim);
+  letter-spacing: 0;
 }
 .section-header::after {
   content: '';
+  flex: 0;
+  height: 0;
+}
+.section-body {
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.section-body.collapsed {
+  max-height: 0 !important;
+}
+
+/* ── Sub-section (armor weight classes within a crafting skill) ── */
+.sub-section-header {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--gold-dim);
+  padding: 10px 14px 6px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sub-section-header::after {
+  content: '';
   flex: 1;
   height: 1px;
-  background: rgba(201,168,76,0.15);
+  background: rgba(201,168,76,0.12);
   margin-left: 6px;
 }
 
@@ -427,6 +480,18 @@ main { padding: 0 0 80px; }
   </div>
 </div>
 
+<!-- Migration modal -->
+<div class="modal-backdrop" id="migrateModal">
+  <div class="modal">
+    <h2>Data Update Required</h2>
+    <p>The trait tracker has been restructured with crafting skill groups and split armor weight classes. Your existing data can be migrated automatically.</p>
+    <div class="modal-btns">
+      <button class="btn btn-danger" onclick="migrateDecision('fresh')">Start Fresh</button>
+      <button class="btn btn-gold" onclick="migrateDecision('migrate')">Migrate Data</button>
+    </div>
+  </div>
+</div>
+
 <!-- Context menu for mobile long-press -->
 <div class="ctx-menu" id="ctxMenu">
   <div class="ctx-item" id="ctxToggleKnown" onclick="ctxAction('known')">
@@ -438,26 +503,242 @@ main { padding: 0 0 80px; }
 </div>
 
 <script>
-const ARMOR_SLOTS   = ["Head","Shoulders","Chest","Hands","Waist","Legs","Feet"];
-const WEAPON_SLOTS  = ["Sword","Shield","Dagger","Axe","Mace","Greatsword","Battle Axe","Maul","Staff","Bow"];
-const JEWELRY_SLOTS = ["Neck","Ring 1","Ring 2"];
-const ALL_SLOTS     = [...ARMOR_SLOTS, ...WEAPON_SLOTS, ...JEWELRY_SLOTS];
+// ══════════════════════════════════════════════════════════════
+//  DATA MODEL — V5 (Crafting Skill Groups)
+// ══════════════════════════════════════════════════════════════
+const STORAGE_KEY = "esoTraitV5";
 
-const ARMOR_TRAITS   = ["Divines","Infused","Reinforced","Well-Fitted","Training","Sturdy","Impenetrable","Prosperous","Nirnhoned"];
+// Armor pieces (same 7 slots for each weight class)
+const ARMOR_PIECES = ["Head","Chest","Shoulders","Hands","Waist","Legs","Feet"];
+
+// Crafting skill definitions — order determines display order
+const CRAFTING_SKILLS = [
+  {
+    id: "woodworking",
+    name: "Woodworking",
+    icon: "🪓",
+    groups: [
+      { label: null, slots: ["Bow","Shield","Fire Staff","Ice Staff","Lightning Staff","Restoration Staff"] }
+    ]
+  },
+  {
+    id: "blacksmithing",
+    name: "Blacksmithing",
+    icon: "⚒",
+    groups: [
+      { label: "Weapons", slots: ["Sword","Axe","Mace","Dagger","Greatsword","Battle Axe","Maul"] },
+      { label: "Heavy Armor", slots: ARMOR_PIECES.map(p => "Heavy " + p) }
+    ]
+  },
+  {
+    id: "clothing",
+    name: "Clothing",
+    icon: "🧵",
+    groups: [
+      { label: "Light Armor", slots: ARMOR_PIECES.map(p => "Light " + p) },
+      { label: "Medium Armor", slots: ARMOR_PIECES.map(p => "Medium " + p) }
+    ]
+  },
+  {
+    id: "jewelry",
+    name: "Jewelry Crafting",
+    icon: "💍",
+    groups: [
+      { label: null, slots: ["Ring","Necklace"] }
+    ]
+  }
+];
+
+// Flatten all slots for iteration
+const ALL_SLOTS = CRAFTING_SKILLS.flatMap(cs => cs.groups.flatMap(g => g.slots));
+
+// Trait lists per type
+const ARMOR_TRAITS   = ["Divines","Infused","Reinforced","Well-Fitted","Training","Sturdy","Impenetrable","Invigorating","Nirnhoned"];
 const WEAPON_TRAITS  = ["Powered","Charged","Precise","Infused","Defending","Training","Sharpened","Decisive","Nirnhoned"];
 const JEWELRY_TRAITS = ["Arcane","Healthy","Robust","Harmony","Infused","Protective","Swift","Triune","Bloodthirsty"];
 
+// Armor slot names (any slot containing a weight prefix + armor piece, plus Shield)
+const ARMOR_SLOT_SET = new Set([
+  ...ARMOR_PIECES.flatMap(p => ["Light " + p, "Medium " + p, "Heavy " + p]),
+  "Shield"
+]);
+const JEWELRY_SLOT_SET = new Set(["Ring","Necklace"]);
+
 function getTraits(slot) {
-  if (ARMOR_SLOTS.includes(slot))   return ARMOR_TRAITS;
-  if (JEWELRY_SLOTS.includes(slot)) return JEWELRY_TRAITS;
+  if (ARMOR_SLOT_SET.has(slot))   return ARMOR_TRAITS;
+  if (JEWELRY_SLOT_SET.has(slot)) return JEWELRY_TRAITS;
   return WEAPON_TRAITS;
 }
 
-// ── Data ──────────────────────────────────────────────────
-let data = (() => { try { return JSON.parse(localStorage.getItem("esoTraitV4") || "null"); } catch(e){} return null; })()
-  || { chars: [], active: null };
+// Short display name: strip weight prefix for armor pieces to save space in cards
+function displaySlotName(slot) {
+  for (const prefix of ["Light ","Medium ","Heavy "]) {
+    if (slot.startsWith(prefix)) return slot.substring(prefix.length);
+  }
+  return slot;
+}
 
-function save() { try { localStorage.setItem("esoTraitV4", JSON.stringify(data)); } catch(e){} }
+// ══════════════════════════════════════════════════════════════
+//  DATA LOADING & MIGRATION
+// ══════════════════════════════════════════════════════════════
+let data = null;
+let pendingMigration = false;
+
+function repairV5(d) {
+  // Fix trait renames (Prosperous → Invigorating) and Shield trait type
+  let changed = false;
+  for (const ch of d.chars) {
+    for (const slot of ALL_SLOTS) {
+      if (!ch.research[slot]) { ch.research[slot] = {}; changed = true; }
+      const expected = getTraits(slot);
+      // Rename Prosperous → Invigorating for armor slots
+      if (ARMOR_SLOT_SET.has(slot) && ch.research[slot]["Prosperous"] && !ch.research[slot]["Invigorating"]) {
+        ch.research[slot]["Invigorating"] = ch.research[slot]["Prosperous"];
+        delete ch.research[slot]["Prosperous"];
+        changed = true;
+      }
+      // If Shield had weapon traits, rebuild with armor traits preserving any matching names
+      if (slot === "Shield") {
+        const oldData = ch.research[slot];
+        const rebuilt = {};
+        for (const t of expected) {
+          rebuilt[t] = oldData[t] || { known: false, inBank: false };
+        }
+        ch.research[slot] = rebuilt;
+        changed = true;
+      }
+      // Ensure all expected traits exist
+      for (const t of expected) {
+        if (!ch.research[slot][t]) { ch.research[slot][t] = { known: false, inBank: false }; changed = true; }
+      }
+    }
+  }
+  return changed;
+}
+
+function loadData() {
+  // Try V5 first
+  try {
+    const v5 = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if (v5 && v5.version === 5) {
+      data = v5;
+      if (repairV5(data)) save();
+      return;
+    }
+  } catch(e){}
+
+  // Try V4 migration
+  try {
+    const v4 = JSON.parse(localStorage.getItem("esoTraitV4") || "null");
+    if (v4 && Array.isArray(v4.chars) && v4.chars.length > 0) {
+      pendingMigration = true;
+      data = v4; // temporarily hold V4 data
+      return;
+    }
+  } catch(e){}
+
+  // Fresh start
+  data = { version: 5, chars: [], active: null };
+}
+
+function migrateV4toV5(v4data) {
+  // Old V4 slots
+  const OLD_ARMOR  = ["Head","Shoulders","Chest","Hands","Waist","Legs","Feet"];
+  const OLD_WEAPONS = ["Sword","Shield","Dagger","Axe","Mace","Greatsword","Battle Axe","Maul","Staff","Bow"];
+  const OLD_JEWELRY = ["Neck","Ring 1","Ring 2"];
+
+  const newData = { version: 5, chars: [], active: v4data.active };
+
+  for (const oldChar of v4data.chars) {
+    const research = {};
+
+    // Initialize all V5 slots with blank traits
+    ALL_SLOTS.forEach(slot => {
+      research[slot] = {};
+      getTraits(slot).forEach(t => { research[slot][t] = { known: false, inBank: false }; });
+    });
+
+    // Migrate armor → copy to all three weight classes
+    for (const piece of OLD_ARMOR) {
+      if (oldChar.research && oldChar.research[piece]) {
+        for (const weight of ["Light","Medium","Heavy"]) {
+          const newSlot = weight + " " + piece;
+          const oldTraitData = oldChar.research[piece];
+          for (const trait of ARMOR_TRAITS) {
+            if (oldTraitData[trait]) {
+              research[newSlot][trait] = { ...oldTraitData[trait] };
+            }
+          }
+        }
+      }
+    }
+
+    // Migrate weapons
+    for (const wep of OLD_WEAPONS) {
+      if (wep === "Staff" && oldChar.research && oldChar.research["Staff"]) {
+        // Staff → copy to all 4 staff types
+        const oldStaff = oldChar.research["Staff"];
+        for (const staffType of ["Fire Staff","Ice Staff","Lightning Staff","Restoration Staff"]) {
+          for (const trait of WEAPON_TRAITS) {
+            if (oldStaff[trait]) {
+              research[staffType][trait] = { ...oldStaff[trait] };
+            }
+          }
+        }
+      } else if (oldChar.research && oldChar.research[wep] && research[wep]) {
+        for (const trait of WEAPON_TRAITS) {
+          if (oldChar.research[wep][trait]) {
+            research[wep][trait] = { ...oldChar.research[wep][trait] };
+          }
+        }
+      }
+    }
+
+    // Migrate jewelry: Neck → Necklace, Ring 1 + Ring 2 → Ring (merge, prefer known)
+    if (oldChar.research) {
+      if (oldChar.research["Neck"]) {
+        for (const trait of JEWELRY_TRAITS) {
+          if (oldChar.research["Neck"][trait]) {
+            research["Necklace"][trait] = { ...oldChar.research["Neck"][trait] };
+          }
+        }
+      }
+      // Merge Ring 1 and Ring 2 into Ring (if either is known, mark known)
+      const r1 = oldChar.research["Ring 1"];
+      const r2 = oldChar.research["Ring 2"];
+      if (r1 || r2) {
+        for (const trait of JEWELRY_TRAITS) {
+          const t1 = r1?.[trait] || { known: false, inBank: false };
+          const t2 = r2?.[trait] || { known: false, inBank: false };
+          research["Ring"][trait] = {
+            known: t1.known || t2.known,
+            inBank: (t1.known || t2.known) ? false : (t1.inBank || t2.inBank)
+          };
+        }
+      }
+    }
+
+    newData.chars.push({ id: oldChar.id, name: oldChar.name, research });
+  }
+
+  return newData;
+}
+
+function migrateDecision(choice) {
+  document.getElementById("migrateModal").classList.remove("open");
+  if (choice === "migrate") {
+    data = migrateV4toV5(data);
+  } else {
+    data = { version: 5, chars: [], active: null };
+  }
+  pendingMigration = false;
+  save();
+  render();
+}
+
+loadData();
+
+function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e){} }
 
 function newResearch() {
   const r = {};
@@ -549,7 +830,6 @@ document.addEventListener("click", e => {
 
 // ── Trait cell touch/click handling ──────────────────────
 function attachTraitEvents(el, charId, slot, trait) {
-  // Desktop: left click = toggle known, right click = context menu
   el.addEventListener("click", e => {
     e.stopPropagation();
     if (ctxOpen) { closeCtxMenu(); return; }
@@ -565,7 +845,6 @@ function attachTraitEvents(el, charId, slot, trait) {
     openCtxMenu(e, charId, slot, trait);
   });
 
-  // Mobile: tap = toggle known, long-press = context menu
   el.addEventListener("touchstart", e => {
     pressTimer = setTimeout(() => {
       pressTimer = null;
@@ -577,7 +856,6 @@ function attachTraitEvents(el, charId, slot, trait) {
     if (pressTimer) {
       clearTimeout(pressTimer);
       pressTimer = null;
-      // short tap = toggle known
       const char = data.chars.find(c => c.id === charId);
       const s = char.research[slot][trait];
       s.known = !s.known;
@@ -589,6 +867,17 @@ function attachTraitEvents(el, charId, slot, trait) {
   el.addEventListener("touchmove", () => {
     if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
   }, { passive: true });
+}
+
+// ── Section collapse state (persisted per character) ──
+let collapsedSections = {};
+try { collapsedSections = JSON.parse(localStorage.getItem("esoTraitCollapsed") || "{}"); } catch(e) { collapsedSections = {}; }
+function saveCollapsed() { try { localStorage.setItem("esoTraitCollapsed", JSON.stringify(collapsedSections)); } catch(e){} }
+
+function toggleSection(sectionId) {
+  collapsedSections[sectionId] = !collapsedSections[sectionId];
+  saveCollapsed();
+  renderChar();
 }
 
 // ── Rendering ─────────────────────────────────────────────
@@ -614,37 +903,68 @@ function renderChar() {
   }));
   const pct = Math.round(known / total * 100);
 
-  // Build slot group
-  function slotGroup(slots, groupName) {
-    const cards = slots.map(slot => {
-      const traits = getTraits(slot);
-      let slotKnown = 0;
-      traits.forEach(t => { if (char.research[slot][t].known) slotKnown++; });
-      const spct = Math.round(slotKnown / traits.length * 100);
+  // Build a single gear card
+  function buildCard(slot) {
+    const traits = getTraits(slot);
+    let slotKnown = 0;
+    traits.forEach(t => { if (char.research[slot][t].known) slotKnown++; });
+    const spct = Math.round(slotKnown / traits.length * 100);
 
-      const cells = traits.map(t => {
-        const s = char.research[slot][t];
-        const cls = [
-          "trait-cell",
-          s.known ? "known" : "",
-          (!s.known && s.inBank) ? "has-bank" : ""
-        ].filter(Boolean).join(" ");
-        return `<div class="${cls}" data-char="${char.id}" data-slot="${slot}" data-trait="${t}">
-          <div class="bank-pip"></div>${t}
-        </div>`;
-      }).join("");
-
-      return `<div class="gear-card">
-        <div class="gear-card-head">
-          <span class="gear-name">${slot}</span>
-          <span class="gear-prog">${slotKnown}/${traits.length}</span>
-        </div>
-        <div class="progress-bar-wrap"><div class="progress-bar" style="width:${spct}%"></div></div>
-        <div class="traits-grid">${cells}</div>
+    const cells = traits.map(t => {
+      const s = char.research[slot][t];
+      const cls = [
+        "trait-cell",
+        s.known ? "known" : "",
+        (!s.known && s.inBank) ? "has-bank" : ""
+      ].filter(Boolean).join(" ");
+      return `<div class="${cls}" data-char="${char.id}" data-slot="${slot}" data-trait="${t}">
+        <div class="bank-pip"></div>${t}
       </div>`;
     }).join("");
 
-    return `<div class="section-header">${groupName}</div>${cards}`;
+    return `<div class="gear-card">
+      <div class="gear-card-head">
+        <span class="gear-name">${displaySlotName(slot)}</span>
+        <span class="gear-prog">${slotKnown}/${traits.length}</span>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar" style="width:${spct}%"></div></div>
+      <div class="traits-grid">${cells}</div>
+    </div>`;
+  }
+
+  // Build crafting skill sections
+  let sectionsHTML = "";
+  for (const skill of CRAFTING_SKILLS) {
+    // Calculate section-level progress
+    let sKnown = 0, sTotal = 0;
+    for (const group of skill.groups) {
+      for (const slot of group.slots) {
+        getTraits(slot).forEach(t => {
+          sTotal++;
+          if (char.research[slot][t].known) sKnown++;
+        });
+      }
+    }
+    const isCollapsed = !!collapsedSections[skill.id];
+
+    let bodyHTML = "";
+    for (const group of skill.groups) {
+      if (group.label) {
+        bodyHTML += `<div class="sub-section-header">${group.label}</div>`;
+      }
+      bodyHTML += group.slots.map(slot => buildCard(slot)).join("");
+    }
+
+    sectionsHTML += `
+      <div class="section-header${isCollapsed ? ' collapsed' : ''}" onclick="toggleSection('${skill.id}')">
+        <span class="section-chevron">▼</span>
+        <span class="section-title">${skill.icon} ${skill.name}</span>
+        <span class="section-progress">${sKnown}/${sTotal}</span>
+      </div>
+      <div class="section-body${isCollapsed ? ' collapsed' : ''}" id="section-${skill.id}"
+           style="${isCollapsed ? 'max-height:0' : 'max-height:none'}">
+        ${bodyHTML}
+      </div>`;
   }
 
   el.innerHTML = `
@@ -660,9 +980,7 @@ function renderChar() {
       <div class="legend-hint">Tap = known &nbsp;·&nbsp; Hold = options</div>
     </div>
     <main>
-      ${slotGroup(ARMOR_SLOTS, "Armor")}
-      ${slotGroup(WEAPON_SLOTS, "Weapons")}
-      ${slotGroup(JEWELRY_SLOTS, "Jewelry")}
+      ${sectionsHTML}
       <div class="char-actions">
         <button class="btn-delete" onclick="deleteChar('${char.id}')">Delete Character</button>
       </div>
@@ -684,6 +1002,10 @@ function renderEmpty() {
 }
 
 function render() {
+  if (pendingMigration) {
+    document.getElementById("migrateModal").classList.add("open");
+    return;
+  }
   renderTabs();
   if (data.chars.length && data.active) renderChar();
   else renderEmpty();
@@ -700,7 +1022,7 @@ function showToast(msg, type) {
 }
 
 function exportData() {
-  const raw = localStorage.getItem("esoTraitV4");
+  const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) { showToast("Nothing to export — no data found.", "error"); return; }
   try { JSON.parse(raw); } catch(e) { showToast("Stored data is corrupted.", "error"); return; }
   const now = new Date();
@@ -732,11 +1054,28 @@ function importData() {
         if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.chars)) {
           showToast("Invalid file: missing 'chars' array.", "error"); return;
         }
+
+        // Check if this is V4 format (no version field or version < 5)
+        if (!parsed.version || parsed.version < 5) {
+          // Attempt V4 migration on imported data
+          try {
+            const migrated = migrateV4toV5(parsed);
+            data = migrated;
+            if (!data.active && data.chars.length) data.active = data.chars[0].id;
+            save();
+            render();
+            showToast("V4 data imported & migrated! (" + data.chars.length + " char" + (data.chars.length !== 1 ? "s" : "") + ")", "success");
+            return;
+          } catch(e) {
+            showToast("Could not migrate old format data.", "error"); return;
+          }
+        }
+
+        // Validate V5 structure
         for (const c of parsed.chars) {
           if (!c.id || !c.name || !c.research || typeof c.research !== "object") {
             showToast("Invalid file: bad character entry '" + (c.name || "unknown") + "'.", "error"); return;
           }
-          // Validate that research has the expected slot/trait structure
           for (const slot of ALL_SLOTS) {
             if (!c.research[slot] || typeof c.research[slot] !== "object") {
               showToast("Invalid file: missing slot '" + slot + "' for " + c.name + ".", "error"); return;
@@ -754,6 +1093,7 @@ function importData() {
         }
         // Validated — load it
         data = parsed;
+        data.version = 5;
         if (!data.active && data.chars.length) data.active = data.chars[0].id;
         save();
         render();
@@ -784,7 +1124,6 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
         console.log('[PWA] Service worker registered, scope:', reg.scope);
-        // Check for updates
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
