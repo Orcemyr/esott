@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ESO Traits">
+<meta name="theme-color" content="#1a1208">
+<meta name="application-name" content="ESO Trait Tracker">
+<meta name="msapplication-TileColor" content="#1a1208">
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Apple Touch Icons -->
+<link rel="apple-touch-icon" href="icons/icon-180x180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167x167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180x180.png">
+
+<!-- Standard Icons -->
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-96x96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+
+<!-- iOS Splash Screen / Status Bar -->
+<meta name="apple-touch-fullscreen" content="yes">
+
+<title>ESO Trait Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #c9a84c;
+  --gold-light: #e8c97a;
+  --gold-dim: #7a6030;
+  --parchment: #f5edd8;
+  --parchment-dark: #e8dcc0;
+  --ink: #1a1208;
+  --ink-mid: #2e2010;
+  --ink-soft: #4a3820;
+  --known-bg: #1e3a1e;
+  --known-border: #4a8a3a;
+  --known-text: #a8d890;
+  --bank-dot: #e8a020;
+  --danger: #8a2020;
+  --danger-light: #c04040;
+  --scroll-bg: #2a1e0e;
+  --card-bg: rgba(245,237,216,0.06);
+  --card-border: rgba(201,168,76,0.25);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Crimson Text', Georgia, serif;
+  background: var(--ink);
+  color: var(--parchment);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(201,168,76,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(201,168,76,0.05) 0%, transparent 50%);
+}
+
+/* ── Safe area for notched iPhones ── */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ── Header ── */
+header {
+  background: linear-gradient(180deg, #0e0a04 0%, var(--ink-mid) 100%);
+  border-bottom: 1px solid var(--gold-dim);
+  padding: 14px 16px 12px;
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; gap: 10px;
+}
+header h1 {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gold-light);
+  letter-spacing: 0.08em;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-ornament {
+  color: var(--gold-dim);
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ── Tabs ── */
+.char-tabs-wrap {
+  background: var(--ink-mid);
+  border-bottom: 1px solid var(--gold-dim);
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  gap: 0;
+}
+.char-tabs-wrap::-webkit-scrollbar { display: none; }
+.tab {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--gold-dim);
+  padding: 10px 16px;
+  white-space: nowrap;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.tab:hover { color: var(--gold); }
+.tab.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+.tab-add {
+  font-size: 18px;
+  color: var(--gold-dim);
+  padding: 6px 14px;
+  cursor: pointer;
+  display: flex; align-items: center;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.tab-add:hover { color: var(--gold); }
+
+/* ── Add char modal ── */
+.modal-backdrop {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(10,7,2,0.85);
+  align-items: center; justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--ink-mid);
+  border: 1px solid var(--gold-dim);
+  border-radius: 6px;
+  padding: 24px 20px;
+  width: min(340px, calc(100vw - 32px));
+}
+.modal h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gold-light);
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+}
+.modal input {
+  width: 100%;
+  background: rgba(245,237,216,0.07);
+  border: 1px solid var(--gold-dim);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: 'Crimson Text', serif;
+  font-size: 17px;
+  color: var(--parchment);
+  margin-bottom: 14px;
+  outline: none;
+}
+.modal input:focus { border-color: var(--gold); }
+.modal input::placeholder { color: rgba(245,237,216,0.3); }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.btn {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  padding: 8px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--gold-dim);
+  background: transparent;
+  color: var(--gold-dim);
+  transition: all 0.15s;
+}
+.btn:hover { border-color: var(--gold); color: var(--gold); }
+.btn-gold {
+  background: var(--gold-dim);
+  color: var(--parchment);
+  border-color: var(--gold);
+}
+.btn-gold:hover { background: var(--gold); color: var(--ink); }
+
+/* ── Stats bar ── */
+.stats-bar {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--gold-dim);
+  background: var(--scroll-bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.stats-bar::-webkit-scrollbar { display: none; }
+.stat {
+  flex: 1; min-width: 80px;
+  padding: 10px 12px;
+  text-align: center;
+  border-right: 1px solid rgba(201,168,76,0.15);
+}
+.stat:last-child { border-right: none; }
+.stat-val {
+  font-family: 'Cinzel', serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--gold-light);
+  line-height: 1;
+}
+.stat-lbl { font-size: 11px; color: rgba(245,237,216,0.45); margin-top: 3px; letter-spacing: 0.03em; }
+
+/* ── Legend ── */
+.legend {
+  display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(201,168,76,0.12);
+  background: rgba(10,7,2,0.4);
+}
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 13px; color: rgba(245,237,216,0.55); }
+.l-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+.l-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-hint { font-size: 12px; color: rgba(245,237,216,0.35); margin-left: auto; font-style: italic; }
+
+/* ── Sections ── */
+main { padding: 0 0 80px; }
+.section-header {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--gold-dim);
+  padding: 14px 14px 8px;
+  border-bottom: 1px solid rgba(201,168,76,0.1);
+  display: flex; align-items: center; gap: 8px;
+}
+.section-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(201,168,76,0.15);
+  margin-left: 6px;
+}
+
+/* ── Gear card ── */
+.gear-card {
+  margin: 10px 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.gear-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px 7px;
+  background: rgba(201,168,76,0.07);
+  border-bottom: 1px solid rgba(201,168,76,0.15);
+}
+.gear-name {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+.gear-prog { font-size: 12px; color: rgba(245,237,216,0.4); }
+.progress-bar-wrap { height: 3px; background: rgba(255,255,255,0.07); }
+.progress-bar { height: 100%; background: var(--known-border); transition: width 0.25s; }
+
+/* ── Traits grid ── */
+.traits-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  padding: 8px;
+}
+.trait-cell {
+  border-radius: 4px;
+  border: 1px solid rgba(201,168,76,0.18);
+  background: rgba(255,255,255,0.03);
+  color: rgba(245,237,216,0.55);
+  font-size: 12px;
+  font-family: 'Crimson Text', serif;
+  text-align: center;
+  padding: 8px 4px 7px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1.25;
+  -webkit-user-select: none; user-select: none;
+  touch-action: none;
+}
+.trait-cell:active { opacity: 0.75; }
+.trait-cell.known {
+  background: rgba(74,138,58,0.2);
+  border-color: rgba(74,138,58,0.55);
+  color: var(--known-text);
+}
+.bank-pip {
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--bank-dot);
+  box-shadow: 0 0 4px rgba(232,160,32,0.6);
+  display: none;
+}
+.trait-cell.has-bank .bank-pip { display: block; }
+
+/* ── Empty / no-chars ── */
+.empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 20px;
+  gap: 12px;
+  color: rgba(245,237,216,0.35);
+  text-align: center;
+}
+.empty-icon { font-size: 40px; opacity: 0.4; }
+.empty p { font-size: 16px; font-style: italic; }
+
+/* ── Char actions ── */
+.char-actions { display: flex; justify-content: flex-end; padding: 10px 12px 0; }
+.btn-delete {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--danger-light);
+  border: 1px solid rgba(138,32,32,0.4);
+  background: transparent;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-delete:hover { background: rgba(138,32,32,0.2); border-color: var(--danger-light); }
+
+/* ── Footer ── */
+.app-footer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  z-index: 100;
+  background: linear-gradient(0deg, #0e0a04 0%, var(--ink-mid) 100%);
+  border-top: 1px solid var(--gold-dim);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  display: flex; justify-content: center; gap: 12px;
+}
+.btn-footer {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  padding: 8px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--gold-dim);
+  background: transparent;
+  color: var(--gold-dim);
+  transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-footer:hover { border-color: var(--gold); color: var(--gold); }
+.btn-footer .btn-icon { font-size: 14px; }
+.import-msg {
+  position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+  z-index: 150;
+  font-family: 'Crimson Text', serif; font-size: 15px;
+  padding: 10px 20px; border-radius: 6px;
+  pointer-events: none; opacity: 0; transition: opacity 0.3s;
+  white-space: nowrap;
+}
+.import-msg.show { opacity: 1; }
+.import-msg.success { background: var(--known-bg); border: 1px solid var(--known-border); color: var(--known-text); }
+.import-msg.error { background: rgba(138,32,32,0.85); border: 1px solid var(--danger-light); color: #f5c0c0; }
+
+/* ── Long-press context menu ── */
+.ctx-menu {
+  display: none;
+  position: fixed;
+  z-index: 300;
+  background: var(--ink-mid);
+  border: 1px solid var(--gold-dim);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  min-width: 180px;
+}
+.ctx-menu.open { display: block; }
+.ctx-item {
+  padding: 12px 16px;
+  font-size: 15px;
+  color: var(--parchment);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid rgba(201,168,76,0.12);
+}
+.ctx-item:last-child { border-bottom: none; }
+.ctx-item:active { background: rgba(201,168,76,0.1); }
+.ctx-icon { font-size: 16px; width: 20px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="header-ornament">⚔</span>
+  <h1>ESO Trait Tracker</h1>
+</header>
+
+<div id="charTabsWrap" class="char-tabs-wrap">
+  <div class="tab-add" onclick="openAddModal()" title="Add character">＋</div>
+</div>
+
+<div id="mainContent"></div>
+
+<!-- Add character modal -->
+<div class="modal-backdrop" id="addModal">
+  <div class="modal">
+    <h2>New Character</h2>
+    <input type="text" id="charNameInp" placeholder="Enter character name..." maxlength="40"
+      onkeydown="if(event.key==='Enter')confirmAddChar()" />
+    <div class="modal-btns">
+      <button class="btn" onclick="closeAddModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="confirmAddChar()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Context menu for mobile long-press -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" id="ctxToggleKnown" onclick="ctxAction('known')">
+    <span class="ctx-icon">✓</span><span id="ctxKnownLabel">Mark as known</span>
+  </div>
+  <div class="ctx-item" id="ctxToggleBank" onclick="ctxAction('bank')">
+    <span class="ctx-icon">●</span><span id="ctxBankLabel">Mark in bank</span>
+  </div>
+</div>
+
+<script>
+const ARMOR_SLOTS   = ["Head","Shoulders","Chest","Hands","Waist","Legs","Feet"];
+const WEAPON_SLOTS  = ["Sword","Shield","Dagger","Axe","Mace","Greatsword","Battle Axe","Maul","Staff","Bow"];
+const JEWELRY_SLOTS = ["Neck","Ring 1","Ring 2"];
+const ALL_SLOTS     = [...ARMOR_SLOTS, ...WEAPON_SLOTS, ...JEWELRY_SLOTS];
+
+const ARMOR_TRAITS   = ["Divines","Infused","Reinforced","Well-Fitted","Training","Sturdy","Impenetrable","Prosperous","Nirnhoned"];
+const WEAPON_TRAITS  = ["Powered","Charged","Precise","Infused","Defending","Training","Sharpened","Decisive","Nirnhoned"];
+const JEWELRY_TRAITS = ["Arcane","Healthy","Robust","Harmony","Infused","Protective","Swift","Triune","Bloodthirsty"];
+
+function getTraits(slot) {
+  if (ARMOR_SLOTS.includes(slot))   return ARMOR_TRAITS;
+  if (JEWELRY_SLOTS.includes(slot)) return JEWELRY_TRAITS;
+  return WEAPON_TRAITS;
+}
+
+// ── Data ──────────────────────────────────────────────────
+let data = (() => { try { return JSON.parse(localStorage.getItem("esoTraitV4") || "null"); } catch(e){} return null; })()
+  || { chars: [], active: null };
+
+function save() { try { localStorage.setItem("esoTraitV4", JSON.stringify(data)); } catch(e){} }
+
+function newResearch() {
+  const r = {};
+  ALL_SLOTS.forEach(slot => {
+    r[slot] = {};
+    getTraits(slot).forEach(t => { r[slot][t] = { known: false, inBank: false }; });
+  });
+  return r;
+}
+
+function getChar() { return data.chars.find(c => c.id === data.active) || null; }
+
+// ── Modal ─────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById("addModal").classList.add("open");
+  setTimeout(() => document.getElementById("charNameInp").focus(), 100);
+}
+function closeAddModal() {
+  document.getElementById("addModal").classList.remove("open");
+  document.getElementById("charNameInp").value = "";
+}
+function confirmAddChar() {
+  const name = document.getElementById("charNameInp").value.trim();
+  if (!name) return;
+  const id = "c" + Date.now();
+  data.chars.push({ id, name, research: newResearch() });
+  data.active = id;
+  closeAddModal();
+  save(); render();
+}
+
+function deleteChar(id) {
+  if (!confirm("Delete this character? This cannot be undone.")) return;
+  data.chars = data.chars.filter(c => c.id !== id);
+  data.active = data.chars[0]?.id || null;
+  save(); render();
+}
+
+function setActive(id) { data.active = id; render(); }
+
+// ── Context menu (long-press for mobile, right-click desktop) ──
+let ctxTarget = null;
+let pressTimer = null;
+let ctxOpen = false;
+
+function openCtxMenu(e, charId, slot, trait) {
+  const char = data.chars.find(c => c.id === charId);
+  if (!char) return;
+  const s = char.research[slot][trait];
+  ctxTarget = { charId, slot, trait };
+
+  document.getElementById("ctxKnownLabel").textContent = s.known ? "Unmark as known" : "Mark as known";
+  document.getElementById("ctxBankLabel").textContent = s.inBank ? "Remove from bank" : "Mark in bank";
+
+  const menu = document.getElementById("ctxMenu");
+  const x = Math.min(e.clientX || (e.touches?.[0]?.clientX) || 100, window.innerWidth - 200);
+  const y = Math.min(e.clientY || (e.touches?.[0]?.clientY) || 100, window.innerHeight - 120);
+  menu.style.left = x + "px";
+  menu.style.top  = y + "px";
+  menu.classList.add("open");
+  ctxOpen = true;
+}
+
+function closeCtxMenu() {
+  document.getElementById("ctxMenu").classList.remove("open");
+  ctxOpen = false;
+  ctxTarget = null;
+}
+
+function ctxAction(type) {
+  if (!ctxTarget) return;
+  const { charId, slot, trait } = ctxTarget;
+  const char = data.chars.find(c => c.id === charId);
+  if (!char) return;
+  const s = char.research[slot][trait];
+  if (type === "known") {
+    s.known = !s.known;
+    if (s.known) s.inBank = false;
+  } else {
+    if (!s.known) s.inBank = !s.inBank;
+  }
+  closeCtxMenu();
+  save(); render();
+}
+
+document.addEventListener("click", e => {
+  if (ctxOpen && !document.getElementById("ctxMenu").contains(e.target)) closeCtxMenu();
+});
+
+// ── Trait cell touch/click handling ──────────────────────
+function attachTraitEvents(el, charId, slot, trait) {
+  // Desktop: left click = toggle known, right click = context menu
+  el.addEventListener("click", e => {
+    e.stopPropagation();
+    if (ctxOpen) { closeCtxMenu(); return; }
+    const char = data.chars.find(c => c.id === charId);
+    const s = char.research[slot][trait];
+    s.known = !s.known;
+    if (s.known) s.inBank = false;
+    save(); renderChar();
+  });
+
+  el.addEventListener("contextmenu", e => {
+    e.preventDefault();
+    openCtxMenu(e, charId, slot, trait);
+  });
+
+  // Mobile: tap = toggle known, long-press = context menu
+  el.addEventListener("touchstart", e => {
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      openCtxMenu(e, charId, slot, trait);
+    }, 500);
+  }, { passive: true });
+
+  el.addEventListener("touchend", e => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+      // short tap = toggle known
+      const char = data.chars.find(c => c.id === charId);
+      const s = char.research[slot][trait];
+      s.known = !s.known;
+      if (s.known) s.inBank = false;
+      save(); renderChar();
+    }
+  }, { passive: true });
+
+  el.addEventListener("touchmove", () => {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  }, { passive: true });
+}
+
+// ── Rendering ─────────────────────────────────────────────
+function renderTabs() {
+  const wrap = document.getElementById("charTabsWrap");
+  wrap.innerHTML = data.chars.map(c =>
+    `<div class="tab${c.id === data.active ? ' active' : ''}" onclick="setActive('${c.id}')">${c.name}</div>`
+  ).join("") + `<div class="tab-add" onclick="openAddModal()">＋</div>`;
+}
+
+function renderChar() {
+  const char = getChar();
+  const el = document.getElementById("mainContent");
+  if (!char) return;
+
+  // Stats
+  let total=0, known=0, inBank=0;
+  ALL_SLOTS.forEach(slot => getTraits(slot).forEach(t => {
+    const s = char.research[slot][t];
+    total++;
+    if (s.known) known++;
+    else if (s.inBank) inBank++;
+  }));
+  const pct = Math.round(known / total * 100);
+
+  // Build slot group
+  function slotGroup(slots, groupName) {
+    const cards = slots.map(slot => {
+      const traits = getTraits(slot);
+      let slotKnown = 0;
+      traits.forEach(t => { if (char.research[slot][t].known) slotKnown++; });
+      const spct = Math.round(slotKnown / traits.length * 100);
+
+      const cells = traits.map(t => {
+        const s = char.research[slot][t];
+        const cls = [
+          "trait-cell",
+          s.known ? "known" : "",
+          (!s.known && s.inBank) ? "has-bank" : ""
+        ].filter(Boolean).join(" ");
+        return `<div class="${cls}" data-char="${char.id}" data-slot="${slot}" data-trait="${t}">
+          <div class="bank-pip"></div>${t}
+        </div>`;
+      }).join("");
+
+      return `<div class="gear-card">
+        <div class="gear-card-head">
+          <span class="gear-name">${slot}</span>
+          <span class="gear-prog">${slotKnown}/${traits.length}</span>
+        </div>
+        <div class="progress-bar-wrap"><div class="progress-bar" style="width:${spct}%"></div></div>
+        <div class="traits-grid">${cells}</div>
+      </div>`;
+    }).join("");
+
+    return `<div class="section-header">${groupName}</div>${cards}`;
+  }
+
+  el.innerHTML = `
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-val">${known}</div><div class="stat-lbl">Known</div></div>
+      <div class="stat"><div class="stat-val">${pct}%</div><div class="stat-lbl">Complete</div></div>
+      <div class="stat"><div class="stat-val">${inBank}</div><div class="stat-lbl">In Bank</div></div>
+      <div class="stat"><div class="stat-val">${total-known-inBank}</div><div class="stat-lbl">Remaining</div></div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="l-swatch" style="background:rgba(74,138,58,0.25);border:1px solid rgba(74,138,58,0.55)"></div>Known</div>
+      <div class="legend-item"><div class="l-dot" style="background:#e8a020"></div>In bank</div>
+      <div class="legend-hint">Tap = known &nbsp;·&nbsp; Hold = options</div>
+    </div>
+    <main>
+      ${slotGroup(ARMOR_SLOTS, "Armor")}
+      ${slotGroup(WEAPON_SLOTS, "Weapons")}
+      ${slotGroup(JEWELRY_SLOTS, "Jewelry")}
+      <div class="char-actions">
+        <button class="btn-delete" onclick="deleteChar('${char.id}')">Delete Character</button>
+      </div>
+    </main>
+  `;
+
+  // Attach events to all trait cells
+  el.querySelectorAll(".trait-cell").forEach(cell => {
+    attachTraitEvents(cell, cell.dataset.char, cell.dataset.slot, cell.dataset.trait);
+  });
+}
+
+function renderEmpty() {
+  document.getElementById("mainContent").innerHTML = `
+    <div class="empty">
+      <div class="empty-icon">⚔</div>
+      <p>No characters yet.<br>Tap <strong>＋</strong> to add one.</p>
+    </div>`;
+}
+
+function render() {
+  renderTabs();
+  if (data.chars.length && data.active) renderChar();
+  else renderEmpty();
+}
+
+render();
+
+// ── Import / Export ───────────────────────────────────────
+function showToast(msg, type) {
+  const el = document.getElementById("importMsg");
+  el.textContent = msg;
+  el.className = "import-msg " + type + " show";
+  setTimeout(() => el.classList.remove("show"), 3000);
+}
+
+function exportData() {
+  const raw = localStorage.getItem("esoTraitV4");
+  if (!raw) { showToast("Nothing to export — no data found.", "error"); return; }
+  try { JSON.parse(raw); } catch(e) { showToast("Stored data is corrupted.", "error"); return; }
+  const now = new Date();
+  const stamp = now.getFullYear() + "-" +
+    String(now.getMonth()+1).padStart(2,"0") + "-" +
+    String(now.getDate()).padStart(2,"0");
+  const blob = new Blob([raw], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "esott-data-" + stamp + ".json";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  showToast("Data exported successfully!", "success");
+}
+
+function importData() {
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = ".json,application/json";
+  inp.onchange = () => {
+    const file = inp.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        // ── Validate structure ──
+        if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.chars)) {
+          showToast("Invalid file: missing 'chars' array.", "error"); return;
+        }
+        for (const c of parsed.chars) {
+          if (!c.id || !c.name || !c.research || typeof c.research !== "object") {
+            showToast("Invalid file: bad character entry '" + (c.name || "unknown") + "'.", "error"); return;
+          }
+          // Validate that research has the expected slot/trait structure
+          for (const slot of ALL_SLOTS) {
+            if (!c.research[slot] || typeof c.research[slot] !== "object") {
+              showToast("Invalid file: missing slot '" + slot + "' for " + c.name + ".", "error"); return;
+            }
+            const expectedTraits = getTraits(slot);
+            for (const t of expectedTraits) {
+              if (!c.research[slot][t] || typeof c.research[slot][t] !== "object") {
+                showToast("Invalid file: missing trait '" + t + "' in " + slot + " for " + c.name + ".", "error"); return;
+              }
+              if (typeof c.research[slot][t].known !== "boolean" || typeof c.research[slot][t].inBank !== "boolean") {
+                showToast("Invalid file: bad trait data for " + t + "/" + slot + ".", "error"); return;
+              }
+            }
+          }
+        }
+        // Validated — load it
+        data = parsed;
+        if (!data.active && data.chars.length) data.active = data.chars[0].id;
+        save();
+        render();
+        showToast("Data imported successfully! (" + data.chars.length + " character" + (data.chars.length !== 1 ? "s" : "") + ")", "success");
+      } catch(e) {
+        showToast("Invalid JSON file — could not parse.", "error");
+      }
+    };
+    reader.onerror = () => showToast("Error reading file.", "error");
+    reader.readAsText(file);
+  };
+  inp.click();
+}
+</script>
+
+<!-- Footer with Import/Export buttons -->
+<footer class="app-footer">
+  <button class="btn-footer" onclick="importData()"><span class="btn-icon">📥</span> Import</button>
+  <button class="btn-footer" onclick="exportData()"><span class="btn-icon">📤</span> Export</button>
+</footer>
+<input type="file" id="importFile" accept=".json" style="display:none">
+<div id="importMsg" class="import-msg"></div>
+
+<!-- Service Worker Registration -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        console.log('[PWA] Service worker registered, scope:', reg.scope);
+        // Check for updates
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated') {
+              console.log('[PWA] New service worker activated — refresh for updates');
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('[PWA] SW registration failed:', err));
+  });
+}
+</script>
+
+</body>
+</html>
