@@ -1,11 +1,12 @@
-const CACHE_NAME = 'esott-pwa-v2';
+const CACHE_NAME = 'esott-pwa-v4';
+const BASE_PATH = '/esott/';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  '/icons/icon-180x180.png',
+  BASE_PATH,
+  BASE_PATH + 'index.html',
+  BASE_PATH + 'manifest.json',
+  BASE_PATH + 'icons/icon-192x192.png',
+  BASE_PATH + 'icons/icon-512x512.png',
+  BASE_PATH + 'icons/icon-180x180.png',
   'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap'
 ];
 
@@ -76,7 +77,7 @@ self.addEventListener('fetch', event => {
           .catch(() => {
             // Offline fallback for navigation requests
             if (event.request.mode === 'navigate') {
-              return caches.match('/index.html');
+              return caches.match(BASE_PATH + 'index.html');
             }
           });
       })
