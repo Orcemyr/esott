@@ -559,9 +559,9 @@ const CRAFTING_SKILLS = [
 const ALL_SLOTS = CRAFTING_SKILLS.flatMap(cs => cs.groups.flatMap(g => g.slots));
 
 // Trait lists per type
-const ARMOR_TRAITS   = ["Divines","Infused","Reinforced","Well-Fitted","Training","Sturdy","Impenetrable","Invigorating","Nirnhoned"];
+const ARMOR_TRAITS   = ["Sturdy","Impenetrable","Reinforced","Well-Fitted","Training","Infused","Invigorating","Divines","Nirnhoned"];
 const WEAPON_TRAITS  = ["Powered","Charged","Precise","Infused","Defending","Training","Sharpened","Decisive","Nirnhoned"];
-const JEWELRY_TRAITS = ["Arcane","Healthy","Robust","Harmony","Infused","Protective","Swift","Triune","Bloodthirsty"];
+const JEWELRY_TRAITS = ["Arcane","Healthy","Robust","Triune","Infused","Protective","Swift","Harmony","Bloodthirsty"];
 
 // Armor slot names (any slot containing a weight prefix + armor piece, plus Shield)
 const ARMOR_SLOT_SET = new Set([
