@@ -515,7 +515,7 @@ main { padding: 0 0 80px; }
 const STORAGE_KEY = "esoTraitV5";
 
 // Armor pieces (same 7 slots for each weight class)
-const ARMOR_PIECES = ["Head","Chest","Shoulders","Hands","Waist","Legs","Feet"];
+const ARMOR_PIECES = ["Chest","Feet","Hands","Head","Legs","Shoulders","Waist"];
 
 // Crafting skill definitions — order determines display order
 const CRAFTING_SKILLS = [
@@ -524,7 +524,7 @@ const CRAFTING_SKILLS = [
     name: "Woodworking",
     icon: "🪓",
     groups: [
-      { label: null, slots: ["Bow","Shield","Fire Staff","Ice Staff","Lightning Staff","Restoration Staff"] }
+      { label: null, slots: ["Bow","Inferno Staff","Ice Stafff","Lightning Staff","Restoration Staff","Shield"] }
     ]
   },
   {
@@ -532,7 +532,7 @@ const CRAFTING_SKILLS = [
     name: "Blacksmithing",
     icon: "⚒",
     groups: [
-      { label: "Weapons", slots: ["Sword","Axe","Mace","Dagger","Greatsword","Battle Axe","Maul"] },
+      { label: "Weapons", slots: ["Axe","Mace","Sword","Battle Axe","Maul","Greatsword","Dagger"] },
       { label: "Heavy Armor", slots: ARMOR_PIECES.map(p => "Heavy " + p) }
     ]
   },
